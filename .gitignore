@@ -1,0 +1,32 @@
+# Environment variables (contains your API keys - NEVER commit this)
+.env
+
+# Python bytecode (auto-generated when Python runs your code)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment (the folder where pip installs packages locally)
+venv/
+.venv/
+env/
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.dbcant
+
+# AI-DLC documentation (project planning docs - not part of the app)
+aidlc-docs/
+.aidlc-rule-details/
+
+# Database migration versions (auto-generated)
+migrations/versions/*.py
+
+# Test/coverage reports
+htmlcov/
+.coverage
+.pytest_cache/

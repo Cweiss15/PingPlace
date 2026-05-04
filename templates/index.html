@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!--
+  templates/index.html — The Main (and Only) Page
+
+  This is a Jinja2 template. Flask processes it before sending to the browser.
+  Anything in {{ }} or {% %} is Jinja2 syntax that Flask replaces with values.
+
+  Page structure:
+  +--------------------------------------------------+
+  |  Header (PingPlace logo/title)                   |
+  +--------------------------------------------------+
+  |                    |                              |
+  |   Map Panel        |   Dashboard Panel           |
+  |   (Google Map)     |   - Status indicator        |
+  |                    |   - ETA display              |
+  |                    |   - Alert controls           |
+  |                    |   - Destination list         |
+  |                    |                              |
+  +--------------------------------------------------+
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- This meta tag makes the page mobile-responsive -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PingPlace — Commuter Alert</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- ============ HEADER ============ -->
+    <header class="app-header">
+        <h1>📍 PingPlace</h1>
+        <p class="tagline">Wake up before your stop</p>
+    </header>
+
+    <!-- ============ MAIN CONTENT ============ -->
+    <main class="app-main">
+        <!-- LEFT: Map Panel -->
+        <section class="map-panel" data-testid="map-panel">
+            <div id="map" class="map-container" data-testid="google-map"></div>
+        </section>
+
+        <!-- RIGHT: Dashboard Panel -->
+        <section class="dashboard-panel" data-testid="dashboard-panel">
+
+            <!-- Status Indicator -->
+            <div class="status-card" data-testid="status-card">
+                <div class="status-indicator" data-testid="status-indicator">
+                    <span class="status-dot idle" data-testid="status-dot"></span>
+                    <span class="status-text" data-testid="status-text">No alert active</span>
+                </div>
+                <div class="eta-display" data-testid="eta-display" style="display: none;">
+                    <span class="eta-value" data-testid="eta-value">--</span>
+                    <span class="eta-label">min to destination</span>
+                    <span class="eta-updated" data-testid="eta-updated"></span>
+                </div>
+            </div>
+
+            <!-- Alert Controls -->
+            <div class="alert-controls" data-testid="alert-controls">
+                <select id="destination-select" class="destination-select" data-testid="destination-select">
+                    <option value="">Select destination...</option>
+                </select>
+                <button id="btn-start-alert" class="btn btn-start" data-testid="btn-start-alert" disabled>
+                    ▶ Start Alert
+                </button>
+                <button id="btn-stop-alert" class="btn btn-stop" data-testid="btn-stop-alert" style="display: none;">
+                    ⏹ Stop Alert
+                </button>
+                <button id="btn-track-only" class="btn btn-track" data-testid="btn-track-only" disabled>
+                    👁 Track Only
+                </button>
+                <button id="btn-dismiss-alert" class="btn btn-dismiss" data-testid="btn-dismiss-alert" style="display: none;">
+                    ✓ Dismiss Alert
+                </button>
+            </div>
+
+            <!-- Destination Management -->
+            <div class="destinations-section" data-testid="destinations-section">
+                <h3>My Destinations</h3>
+                <div class="add-destination" data-testid="add-destination">
+                    <input
+                        type="text"
+                        id="place-search"
+                        class="place-search-input"
+                        placeholder="Search for a place..."
+                        data-testid="place-search-input"
+                        autocomplete="off"
+                    >
+                    <input
+                        type="text"
+                        id="destination-name"
+                        class="destination-name-input"
+                        placeholder="Label (e.g., Home, Work)"
+                        data-testid="destination-name-input"
+                        maxlength="50"
+                        style="display: none;"
+                    >
+                    <div class="threshold-input" style="display: none;" data-testid="threshold-input">
+                        <label for="threshold-value">Alert me</label>
+                        <input type="number" id="threshold-value" min="1" max="120" value="10" data-testid="threshold-value">
+                        <label>min before arrival</label>
+                    </div>
+                    <button id="btn-save-destination" class="btn btn-save" data-testid="btn-save-destination" style="display: none;">
+                        Save Destination
+                    </button>
+                </div>
+                <ul id="destination-list" class="destination-list" data-testid="destination-list">
+                    <!-- Populated by JavaScript -->
+                </ul>
+            </div>
+
+            <!-- Error Messages -->
+            <div id="error-message" class="error-message" data-testid="error-message" style="display: none;">
+            </div>
+
+        </section>
+    </main>
+
+    <!-- ============ ALERT OVERLAY (shown when alert fires) ============ -->
+    <div id="alert-overlay" class="alert-overlay" data-testid="alert-overlay" style="display: none;">
+        <div class="alert-content">
+            <h2>🔔 Wake Up!</h2>
+            <p class="alert-message" data-testid="alert-message">You're approaching your destination!</p>
+            <button id="btn-dismiss-overlay" class="btn btn-dismiss-large" data-testid="btn-dismiss-overlay">
+                Dismiss Alert
+            </button>
+        </div>
+    </div>
+
+    <!-- ============ SCRIPTS ============ -->
+    <!--
+        Google Maps JavaScript API — loaded with your API key.
+        'libraries=places' enables the Places Autocomplete feature.
+        'callback=initMap' tells Google to call our initMap() function when loaded.
+    -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&libraries=places&callback=initMap" async defer></script>
+
+    <!-- Our JavaScript files (order matters — dependencies first) -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/destinations.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/polling.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/alert.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# Web framework
+Flask==3.1.0
+
+# SQLAlchemy ORM + Flask integration
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.36
+
+# Database migrations (handles table creation and schema changes)
+Flask-Migrate==4.1.0
+
+# PostgreSQL database driver (lets Python talk to PostgreSQL)
+psycopg2-binary==2.9.10
+
+# Environment variable loading (reads .env file)
+python-dotenv==1.0.1
+
+# HTTP requests (for calling Google APIs from the server)
+requests==2.32.3
+
+# Rate limiting (prevents API abuse)
+Flask-Limiter==3.8.0
+
+# CORS handling (controls which domains can call your API)
+Flask-CORS==5.0.0
+
+# CSRF protection (prevents form forgery attacks)
+Flask-WTF==1.2.2
+
+# Testing
+pytest==8.3.4
+pytest-flask==1.3.0

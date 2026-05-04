@@ -1,0 +1,406 @@
+/*
+  static/css/style.css — Mobile-First Responsive Styling
+
+  "Mobile-first" means we design for phones first, then add rules
+  for larger screens. This makes sense because PingPlace is primarily
+  used on a phone while commuting.
+
+  CSS organization:
+  1. Reset & Base styles
+  2. Layout (header, main, panels)
+  3. Components (buttons, cards, inputs)
+  4. Alert overlay
+  5. Responsive breakpoints (tablet, desktop)
+*/
+
+/* ============ 1. RESET & BASE ============ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;  /* Makes width/height include padding and border */
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ============ 2. LAYOUT ============ */
+
+.app-header {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.app-header h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.tagline {
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+
+.app-main {
+    display: flex;
+    flex-direction: column;  /* Stack vertically on mobile */
+    height: calc(100vh - 80px);  /* Full height minus header */
+}
+
+.map-panel {
+    flex: 1;
+    min-height: 250px;
+}
+
+.map-container {
+    width: 100%;
+    height: 100%;
+    min-height: 250px;
+    background-color: #e0e0e0;  /* Gray placeholder before map loads */
+}
+
+.dashboard-panel {
+    padding: 1rem;
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+/* ============ 3. COMPONENTS ============ */
+
+/* Status Card */
+.status-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-dot.idle {
+    background-color: #9ca3af;  /* Gray = no alert */
+}
+
+.status-dot.polling {
+    background-color: #22c55e;  /* Green = monitoring */
+    animation: pulse 2s infinite;
+}
+
+.status-dot.fired {
+    background-color: #ef4444;  /* Red = alert fired */
+    animation: pulse 0.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.eta-display {
+    margin-top: 0.75rem;
+    text-align: center;
+}
+
+.eta-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #6366f1;
+    display: block;
+}
+
+.eta-label {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.eta-updated {
+    font-size: 0.75rem;
+    color: #999;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+/* Buttons */
+.btn {
+    display: block;
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, opacity 0.2s;
+    margin-bottom: 0.5rem;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-start {
+    background-color: #22c55e;
+    color: white;
+}
+
+.btn-start:hover:not(:disabled) {
+    background-color: #16a34a;
+}
+
+.btn-stop {
+    background-color: #ef4444;
+    color: white;
+}
+
+.btn-stop:hover {
+    background-color: #dc2626;
+}
+
+.btn-track {
+    background-color: #6366f1;
+    color: white;
+}
+
+.btn-track:hover:not(:disabled) {
+    background-color: #4f46e5;
+}
+
+.btn-dismiss {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.btn-save {
+    background-color: #6366f1;
+    color: white;
+}
+
+.btn-save:hover {
+    background-color: #4f46e5;
+}
+
+/* Alert Controls */
+.alert-controls {
+    margin-bottom: 1rem;
+}
+
+.destination-select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    background-color: white;
+}
+
+/* Destination Management */
+.destinations-section h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.place-search-input,
+.destination-name-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.place-search-input:focus,
+.destination-name-input:focus,
+.destination-select:focus {
+    border-color: #6366f1;
+    outline: none;
+}
+
+.threshold-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.threshold-input input[type="number"] {
+    width: 60px;
+    padding: 0.5rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 1rem;
+}
+
+/* Destination List */
+.destination-list {
+    list-style: none;
+}
+
+.destination-item {
+    background: white;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.destination-info {
+    flex: 1;
+}
+
+.destination-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.destination-address {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.15rem;
+}
+
+.destination-threshold {
+    font-size: 0.75rem;
+    color: #6366f1;
+    margin-top: 0.15rem;
+}
+
+.destination-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+}
+
+.btn-icon:hover {
+    background-color: #f3f4f6;
+}
+
+/* Error Message */
+.error-message {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+/* ============ 4. ALERT OVERLAY ============ */
+/* Full-screen overlay when alert fires — impossible to miss */
+
+.alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.alert-content {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem;
+    text-align: center;
+    max-width: 320px;
+    animation: shake 0.5s infinite;
+}
+
+.alert-content h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.alert-message {
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 1.5rem;
+}
+
+.btn-dismiss-large {
+    background-color: #ef4444;
+    color: white;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* ============ 5. RESPONSIVE BREAKPOINTS ============ */
+
+/* Tablet and up — side-by-side layout */
+@media (min-width: 768px) {
+    .app-main {
+        flex-direction: row;  /* Side by side instead of stacked */
+    }
+
+    .map-panel {
+        flex: 2;  /* Map takes 2/3 of width */
+        min-height: unset;
+    }
+
+    .dashboard-panel {
+        flex: 1;  /* Dashboard takes 1/3 */
+        max-height: unset;
+        height: calc(100vh - 80px);
+        border-left: 1px solid #e5e7eb;
+    }
+
+    .map-container {
+        height: 100%;
+        min-height: unset;
+    }
+}
