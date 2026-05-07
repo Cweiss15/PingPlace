@@ -157,6 +157,9 @@ function initPlacesAutocomplete() {
             );
         }
 
+        // ── Show straight-line distance from current location ─────────────────
+        showDistanceFromCurrentLocation(selectedPlace.latitude, selectedPlace.longitude, selectedPlace.suggestedName);
+
         hideError();
     }
 
@@ -256,6 +259,14 @@ async function saveDestination() {
         renderDestinationList();
         updateDestinationSelect();
 
+        // Auto-select the newly saved destination in the dropdown
+        const select = document.getElementById('destination-select');
+        if (select) {
+            select.value = newDest.id;
+            // Trigger the change event so buttons enable
+            select.dispatchEvent(new Event('change'));
+        }
+
         // Reset the form
         resetDestinationForm();
         hideError();
@@ -286,6 +297,7 @@ function resetDestinationForm() {
     if (cancelBtn) cancelBtn.style.display = 'none';
     document.getElementById('threshold-value').value = '10';
     selectedPlace = null;
+    hideDistanceBanner();
     if (typeof clearDestinationMarker === 'function') {
         clearDestinationMarker();
     }
@@ -419,6 +431,74 @@ async function editDestination(destinationId) {
         showError('Network error. Please try again.');
         console.error('Edit error:', error);
     }
+}
+
+/**
+ * Calculate straight-line (haversine) distance between two lat/lng points.
+ * Returns distance in km.
+ *
+ * @param {number} lat1
+ * @param {number} lng1
+ * @param {number} lat2
+ * @param {number} lng2
+ * @returns {number} Distance in km
+ */
+function haversineDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Get user's current GPS location, calculate straight-line distance to the
+ * given destination coordinates, and display a banner in the status card.
+ *
+ * @param {number} destLat
+ * @param {number} destLng
+ * @param {string} destName
+ */
+function showDistanceFromCurrentLocation(destLat, destLng, destName) {
+    const banner = document.getElementById('distance-banner');
+    if (!banner) return;
+
+    banner.textContent = '📍 Getting your location…';
+    banner.style.display = 'block';
+
+    if (!navigator.geolocation) {
+        banner.textContent = '⚠️ Geolocation not available';
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const km = haversineDistance(
+                pos.coords.latitude, pos.coords.longitude,
+                destLat, destLng
+            );
+            const miles = km * 0.621371;
+            const distStr = km < 1
+                ? `${Math.round(km * 1000)} m`
+                : `${km.toFixed(1)} km (${miles.toFixed(1)} mi)`;
+            banner.innerHTML = `📍 <strong>${escapeHtml(destName)}</strong> is <strong>${distStr}</strong> away (straight line)`;
+        },
+        () => {
+            banner.textContent = '⚠️ Location permission needed to show distance';
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+    );
+}
+
+/**
+ * Hide the distance banner.
+ */
+function hideDistanceBanner() {
+    const banner = document.getElementById('distance-banner');
+    if (banner) banner.style.display = 'none';
 }
 
 /**

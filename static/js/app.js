@@ -16,6 +16,7 @@
 const appState = {
     deviceId: null,          // Set after device registration
     destinations: [],        // Array of saved destinations
+    travelMode: 'car',       // 'car' | 'bus' | 'train'
     activeAlert: {
         sessionId: null,     // UUID from server when alert starts
         destinationId: null,
@@ -115,6 +116,15 @@ function setupEventListeners() {
         const hasSelection = this.value !== '';
         document.getElementById('btn-start-alert').disabled = !hasSelection;
         document.getElementById('btn-track-only').disabled = !hasSelection;
+    });
+
+    // Transport mode picker
+    document.querySelectorAll('.transport-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            appState.travelMode = btn.dataset.mode;
+            document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
     });
 }
 
@@ -293,6 +303,7 @@ function updateUIForState(state) {
     const statusDot = document.querySelector('.status-dot');
     const statusText = document.querySelector('.status-text');
     const destSelect = document.getElementById('destination-select');
+    const transportBtns = document.querySelectorAll('.transport-btn');
 
     switch (state) {
         case 'IDLE':
@@ -304,9 +315,11 @@ function updateUIForState(state) {
             statusDot.className = 'status-dot idle';
             statusText.textContent = 'No alert active';
             destSelect.disabled = false;
+            transportBtns.forEach(b => b.disabled = false);
             break;
 
-        case 'POLLING':
+        case 'POLLING': {
+            const modeEmoji = { car: '🚗', bus: '🚌', train: '🚆' }[appState.travelMode] || '';
             startBtn.style.display = 'none';
             stopBtn.style.display = 'block';
             trackBtn.style.display = 'none';
@@ -314,10 +327,12 @@ function updateUIForState(state) {
             etaDisplay.style.display = 'block';
             statusDot.className = 'status-dot polling';
             statusText.textContent = appState.trackingMode
-                ? `Tracking: ${appState.activeAlert.destinationName}`
-                : `Alert active: ${appState.activeAlert.destinationName}`;
+                ? `${modeEmoji} Tracking: ${appState.activeAlert.destinationName}`
+                : `${modeEmoji} Alert active: ${appState.activeAlert.destinationName}`;
             destSelect.disabled = true;
+            transportBtns.forEach(b => b.disabled = true);
             break;
+        }
 
         case 'FIRED':
             startBtn.style.display = 'none';
@@ -327,18 +342,29 @@ function updateUIForState(state) {
             statusDot.className = 'status-dot fired';
             statusText.textContent = 'ALERT! Approaching destination!';
             destSelect.disabled = true;
+            transportBtns.forEach(b => b.disabled = true);
             break;
     }
 }
 
 /**
  * Update the ETA display on the dashboard.
+ * Shows travel time and, for car/bus, any traffic delay.
  */
-function updateEtaDisplay(etaMinutes) {
+function updateEtaDisplay(etaMinutes, etaText, trafficDelay) {
     const etaValue = document.querySelector('.eta-value');
+    const etaLabel = document.querySelector('.eta-label');
     const etaUpdated = document.querySelector('.eta-updated');
 
     etaValue.textContent = etaMinutes !== null ? etaMinutes : '--';
+
+    // Show traffic delay hint for car/bus
+    if (trafficDelay && trafficDelay > 0 && appState.travelMode !== 'train') {
+        etaLabel.innerHTML = `min to destination &nbsp;<span style="color:#ef4444;font-size:0.75rem;font-weight:600">+${trafficDelay} min traffic</span>`;
+    } else {
+        etaLabel.textContent = 'min to destination';
+    }
+
     etaUpdated.textContent = `Updated ${new Date().toLocaleTimeString()}`;
     appState.activeAlert.currentEta = etaMinutes;
     appState.activeAlert.lastUpdated = new Date();

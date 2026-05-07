@@ -33,5 +33,8 @@ class Config:
     # Geoapify API key — used for address autocomplete in the frontend
     GEOAPIFY_API_KEY = os.environ.get('GEOAPIFY_API_KEY', '')
 
+    # TomTom Traffic API key — used for traffic-aware ETA (car / bus modes)
+    TOMTOM_API_KEY = os.environ.get('TomTom_Traffic_API_Key', '')
+
     # Rate limiting storage (in-memory for development)
     RATELIMIT_STORAGE_URI = "memory://"

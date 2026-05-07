@@ -136,6 +136,7 @@ def calculate_eta():
     latitude = data.get('latitude')
     longitude = data.get('longitude')
     destination_id = data.get('destination_id')
+    travel_mode = data.get('travel_mode', 'car')  # 'car' | 'bus' | 'train'
 
     if latitude is None or longitude is None:
         return jsonify({'error': 'latitude and longitude are required'}), 400
@@ -149,17 +150,21 @@ def calculate_eta():
     if not destination_id:
         return jsonify({'error': 'destination_id is required'}), 400
 
+    if travel_mode not in ('car', 'bus', 'train'):
+        return jsonify({'error': 'travel_mode must be car, bus, or train'}), 400
+
     # ---- Verify destination belongs to this device (IDOR prevention) ----
     destination = destination_service.get_destination(destination_id, device.id)
     if not destination:
         return jsonify({'error': 'Destination not found'}), 404
 
-    # ---- Calculate ETA via Google Distance Matrix API ----
+    # ---- Calculate ETA via TomTom (car/bus) or OSRM (train) ----
     result = eta_service.calculate_eta(
         origin_lat=latitude,
         origin_lng=longitude,
         dest_lat=destination.latitude,
-        dest_lng=destination.longitude
+        dest_lng=destination.longitude,
+        travel_mode=travel_mode
     )
 
     # Add destination context to the response

@@ -49,6 +49,8 @@
                     <span class="status-dot idle" data-testid="status-dot"></span>
                     <span class="status-text" data-testid="status-text">No alert active</span>
                 </div>
+                <!-- Distance banner — shown when user selects a search suggestion -->
+                <div id="distance-banner" class="distance-banner" style="display: none;"></div>
                 <div class="eta-display" data-testid="eta-display" style="display: none;">
                     <span class="eta-value" data-testid="eta-value">--</span>
                     <span class="eta-label">min to destination</span>
@@ -58,6 +60,23 @@
 
             <!-- Alert Controls -->
             <div class="alert-controls" data-testid="alert-controls">
+
+                <!-- Transport Mode Picker -->
+                <div class="transport-picker" id="transport-picker" data-testid="transport-picker">
+                    <span class="transport-label">How are you travelling?</span>
+                    <div class="transport-options">
+                        <button class="transport-btn active" data-mode="car" id="mode-car" title="Car (with traffic)" data-testid="mode-car">
+                            🚗<span>Car</span>
+                        </button>
+                        <button class="transport-btn" data-mode="bus" id="mode-bus" title="Bus (with traffic)" data-testid="mode-bus">
+                            🚌<span>Bus</span>
+                        </button>
+                        <button class="transport-btn" data-mode="train" id="mode-train" title="Train (no traffic)" data-testid="mode-train">
+                            🚆<span>Train</span>
+                        </button>
+                    </div>
+                </div>
+
                 <select id="destination-select" class="destination-select" data-testid="destination-select">
                     <option value="">Select destination...</option>
                 </select>

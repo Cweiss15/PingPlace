@@ -126,6 +126,18 @@ body {
     text-align: center;
 }
 
+/* Distance banner — shown when user picks a search suggestion */
+.distance-banner {
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12));
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: #4338ca;
+    line-height: 1.4;
+}
+
 .eta-value {
     font-size: 2.5rem;
     font-weight: 700;
@@ -208,6 +220,73 @@ body {
 /* Alert Controls */
 .alert-controls {
     margin-bottom: 1rem;
+}
+
+/* ──────────────────────────────── Transport Mode Picker */
+.transport-picker {
+    margin-bottom: 0.75rem;
+}
+
+.transport-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.45rem;
+}
+
+.transport-options {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.transport-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.55rem 0.25rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    font-size: 1.4rem;          /* emoji size */
+    transition: border-color 0.18s, background 0.18s, box-shadow 0.18s, transform 0.12s;
+    color: #374151;
+}
+
+.transport-btn span {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #6b7280;
+}
+
+.transport-btn:hover {
+    border-color: #a5b4fc;
+    background: #f5f3ff;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    transform: translateY(-1px);
+}
+
+.transport-btn.active {
+    border-color: #6366f1;
+    background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+
+.transport-btn.active span {
+    color: #4338ca;
+}
+
+/* Disabled when alert is running */
+.transport-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .destination-select {

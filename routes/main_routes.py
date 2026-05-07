@@ -36,5 +36,6 @@ def index():
     return render_template(
         'index.html',
         google_api_key=current_app.config['GOOGLE_API_KEY'],
-        geoapify_api_key=current_app.config['GEOAPIFY_API_KEY']
+        geoapify_api_key=current_app.config['GEOAPIFY_API_KEY'],
+        tomtom_api_key=current_app.config['TOMTOM_API_KEY']
     )

@@ -94,7 +94,8 @@ async function executePollCycle() {
             body: JSON.stringify({
                 destination_id: appState.activeAlert.destinationId,
                 latitude: userLat,
-                longitude: userLng
+                longitude: userLng,
+                travel_mode: appState.travelMode   // 'car' | 'bus' | 'train'
             })
         });
 
@@ -107,7 +108,11 @@ async function executePollCycle() {
         const etaData = await etaResponse.json();
 
         // Step 3: Update UI with new ETA
-        updateEtaDisplay(etaData.eta_minutes);
+        updateEtaDisplay(
+            etaData.eta_minutes,
+            etaData.eta_text,
+            etaData.traffic_delay
+        );
 
         // Step 4: Check if we should fire the alert
         if (etaData.should_alert && !appState.trackingMode) {
