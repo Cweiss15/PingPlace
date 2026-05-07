@@ -72,7 +72,7 @@ def create_app():
             "script-src 'self' https://maps.googleapis.com https://maps.gstatic.com 'unsafe-inline' 'unsafe-eval'; "
             "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
             "img-src 'self' https://*.googleapis.com https://*.gstatic.com https://*.google.com data:; "
-            "connect-src 'self' https://maps.googleapis.com https://nominatim.openstreetmap.org; "
+            "connect-src 'self' https://maps.googleapis.com https://nominatim.openstreetmap.org https://api.geoapify.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "frame-src https://www.google.com https://maps.google.com; "
             "worker-src blob:;"

@@ -30,5 +30,8 @@ class Config:
     # Google API key — used server-side for Distance Matrix calls
     GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', '')
 
+    # Geoapify API key — used for address autocomplete in the frontend
+    GEOAPIFY_API_KEY = os.environ.get('GEOAPIFY_API_KEY', '')
+
     # Rate limiting storage (in-memory for development)
     RATELIMIT_STORAGE_URI = "memory://"

@@ -18,118 +18,190 @@
 let selectedPlace = null;
 
 /**
- * Initialize OpenStreetMap Nominatim Search (Fallback).
- * Since the Google Places API is restricted on this API key, we use Nominatim
- * to geocode the address the user types.
+ * Initialize Geoapify Autocomplete Search.
+ *
+ * Calls https://api.geoapify.com/v1/geocode/autocomplete as the user types,
+ * showing a dropdown of matching places. Selecting one populates selectedPlace
+ * and reveals the name / threshold / save form.
+ *
+ * Debounced at 300 ms to avoid hammering the API on every keystroke.
  */
 function initPlacesAutocomplete() {
     const container = document.getElementById('place-search-container');
     if (!container) return;
-    
-    // Clear the container and create a simple manual search input
+
+    // ── Build the search input ────────────────────────────────────────────────
     container.innerHTML = '';
-    
-    const searchDiv = document.createElement('div');
-    searchDiv.style.display = 'flex';
-    searchDiv.style.gap = '8px';
-    searchDiv.style.marginBottom = '0.5rem';
-    
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative; margin-bottom:0.5rem;';
+
     const input = document.createElement('input');
     input.type = 'text';
+    input.id = 'geoapify-search-input';
     input.className = 'place-search-input';
-    input.placeholder = 'Type address & press Enter to search...';
-    input.style.marginBottom = '0';
-    input.style.flex = '1';
-    
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = 'Search';
-    searchBtn.className = 'btn';
-    searchBtn.style.width = 'auto';
-    searchBtn.style.padding = '0.75rem 1rem';
-    searchBtn.style.marginBottom = '0';
-    searchBtn.style.backgroundColor = '#6366f1';
-    searchBtn.style.color = 'white';
-    
-    searchDiv.appendChild(input);
-    searchDiv.appendChild(searchBtn);
-    container.appendChild(searchDiv);
-    
-    const performSearch = async () => {
-        const query = input.value.trim();
-        if (!query) return;
-        
-        try {
-            searchBtn.textContent = '...';
-            searchBtn.disabled = true;
-            
-            // Call Nominatim API (OpenStreetMap)
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`, {
-                headers: {
-                    'Accept-Language': 'en-US,en'
-                }
-            });
-            const data = await response.json();
-            
-            if (data && data.length > 0) {
-                const place = data[0];
-                
-                selectedPlace = {
-                    place_id: place.place_id.toString(),
-                    address: place.display_name,
-                    latitude: parseFloat(place.lat),
-                    longitude: parseFloat(place.lon),
-                    suggestedName: place.name || query
-                };
-                
-                // Show the name and threshold inputs
-                const nameInput = document.getElementById('destination-name');
-                const thresholdDiv = document.querySelector('.threshold-input');
-                const saveBtn = document.getElementById('btn-save-destination');
-                const cancelBtn = document.getElementById('btn-cancel-destination');
-                
-                nameInput.style.display = 'block';
-                thresholdDiv.style.display = 'flex';
-                saveBtn.style.display = 'block';
-                if (cancelBtn) cancelBtn.style.display = 'block';
-                
-                // Pre-fill the name
-                nameInput.value = (place.name || query).substring(0, 50);
-                nameInput.focus();
-                
-                // Show destination on map
-                if (typeof setDestinationMarker === 'function') {
-                    setDestinationMarker(
-                        { lat: selectedPlace.latitude, lng: selectedPlace.longitude },
-                        selectedPlace.suggestedName
-                    );
-                }
-                
-                hideError();
-                input.value = place.display_name; // Update input with full formatted address
-            } else {
-                showError('Location not found. Try a more specific address.');
-            }
-        } catch (error) {
-            console.error('Search error:', error);
-            showError('Error searching for location.');
-        } finally {
-            searchBtn.textContent = 'Search';
-            searchBtn.disabled = false;
+    input.placeholder = 'Search for a place…';
+    input.autocomplete = 'off';
+    input.setAttribute('data-testid', 'place-search-input');
+
+    // ── Build the dropdown list ───────────────────────────────────────────────
+    const dropdown = document.createElement('ul');
+    dropdown.id = 'geoapify-suggestions';
+    dropdown.style.cssText = [
+        'position:absolute',
+        'top:100%',
+        'left:0',
+        'right:0',
+        'z-index:9999',
+        'margin:2px 0 0',
+        'padding:0',
+        'list-style:none',
+        'background:#1e1e2e',
+        'border:1px solid #6366f1',
+        'border-radius:8px',
+        'box-shadow:0 8px 24px rgba(0,0,0,.5)',
+        'max-height:240px',
+        'overflow-y:auto',
+        'display:none'
+    ].join(';');
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(dropdown);
+    container.appendChild(wrapper);
+
+    // ── Helper: render suggestion items ──────────────────────────────────────
+    function renderSuggestions(features) {
+        dropdown.innerHTML = '';
+
+        if (!features || features.length === 0) {
+            dropdown.style.display = 'none';
+            return;
         }
-    };
-    
-    // Search on Enter key
-    input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            performSearch();
+
+        features.forEach((feature, idx) => {
+            const props = feature.properties;
+            const li = document.createElement('li');
+            li.dataset.idx = idx;
+            li.style.cssText = [
+                'padding:10px 14px',
+                'cursor:pointer',
+                'border-bottom:1px solid rgba(255,255,255,.07)',
+                'color:#e2e8f0',
+                'font-size:0.875rem',
+                'line-height:1.4',
+                'transition:background 0.15s'
+            ].join(';');
+
+            // Bold the primary name, dim the secondary address
+            const primary = escapeHtml(props.name || props.formatted || '');
+            const secondary = escapeHtml(
+                props.name && props.formatted && props.formatted !== props.name
+                    ? props.formatted
+                    : (props.country || '')
+            );
+
+            li.innerHTML = `<strong>${primary}</strong>${secondary ? `<br><span style="color:#94a3b8;font-size:0.8rem">${secondary}</span>` : ''}`;
+
+            li.addEventListener('mouseenter', () => { li.style.background = 'rgba(99,102,241,.25)'; });
+            li.addEventListener('mouseleave', () => { li.style.background = ''; });
+
+            li.addEventListener('mousedown', (e) => {
+                // Use mousedown (not click) so it fires before the input blur
+                e.preventDefault();
+                selectSuggestion(feature);
+            });
+
+            dropdown.appendChild(li);
+        });
+
+        dropdown.style.display = 'block';
+    }
+
+    // ── Helper: when a suggestion is chosen ──────────────────────────────────
+    function selectSuggestion(feature) {
+        const props = feature.properties;
+        const [lng, lat] = feature.geometry.coordinates;
+
+        selectedPlace = {
+            place_id: props.place_id || props.osm_id || `geo_${lat}_${lng}`,
+            address: props.formatted || props.name || '',
+            latitude: lat,
+            longitude: lng,
+            suggestedName: props.name || props.city || props.formatted || ''
+        };
+
+        // Fill the search input with the chosen address
+        input.value = props.formatted || props.name || '';
+        dropdown.style.display = 'none';
+
+        // Show the name / threshold / save form
+        const nameInput = document.getElementById('destination-name');
+        const thresholdDiv = document.querySelector('.threshold-input');
+        const saveBtn = document.getElementById('btn-save-destination');
+        const cancelBtn = document.getElementById('btn-cancel-destination');
+
+        nameInput.style.display = 'block';
+        thresholdDiv.style.display = 'flex';
+        saveBtn.style.display = 'block';
+        if (cancelBtn) cancelBtn.style.display = 'block';
+
+        // Pre-fill label with the place's short name
+        nameInput.value = selectedPlace.suggestedName.substring(0, 50);
+        nameInput.focus();
+
+        // Drop a pin on the map
+        if (typeof setDestinationMarker === 'function') {
+            setDestinationMarker(
+                { lat: selectedPlace.latitude, lng: selectedPlace.longitude },
+                selectedPlace.suggestedName
+            );
+        }
+
+        hideError();
+    }
+
+    // ── Fetch suggestions from Geoapify (debounced) ───────────────────────────
+    let debounceTimer = null;
+
+    async function fetchSuggestions(query) {
+        if (!query || query.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        try {
+            const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
+            url.searchParams.set('text', query);
+            url.searchParams.set('apiKey', GEOAPIFY_API_KEY);
+            url.searchParams.set('limit', '6');
+            url.searchParams.set('format', 'geojson');
+
+            const res = await fetch(url.toString());
+            if (!res.ok) throw new Error(`Geoapify error: ${res.status}`);
+            const data = await res.json();
+            renderSuggestions(data.features || []);
+        } catch (err) {
+            console.error('Autocomplete fetch failed:', err);
+            dropdown.style.display = 'none';
+        }
+    }
+
+    // ── Wire up input events ──────────────────────────────────────────────────
+    input.addEventListener('input', () => {
+        const query = input.value.trim();
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => fetchSuggestions(query), 300);
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
         }
     });
-    
-    // Search on button click
-    searchBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        performSearch();
+
+    // Hide dropdown when focus leaves the search area entirely
+    input.addEventListener('blur', () => {
+        setTimeout(() => { dropdown.style.display = 'none'; }, 150);
     });
 }
 

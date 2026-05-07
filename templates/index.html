@@ -139,6 +139,12 @@
     <!-- Load Google Maps API -->
     <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&callback=initMap" async defer></script>
 
+    <!-- Inject server-side config into JS -->
+    <script>
+        // Injected by Flask — do not hardcode these values elsewhere
+        const GEOAPIFY_API_KEY = "{{ geoapify_api_key }}";
+    </script>
+
     <!-- Our JavaScript files (order matters — dependencies first) -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/map.js') }}"></script>
