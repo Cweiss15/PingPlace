@@ -3,7 +3,7 @@
   templates/index.html — The Main (and Only) Page
 
   This is a Jinja2 template. Flask processes it before sending to the browser.
-  Anything in {{ }} or {% %} is Jinja2 syntax that Flask replaces with values.
+  Anything in double curly braces is Jinja2 syntax that Flask replaces with values.
 
   Page structure:
   +--------------------------------------------------+
@@ -79,14 +79,20 @@
             <div class="destinations-section" data-testid="destinations-section">
                 <h3>My Destinations</h3>
                 <div class="add-destination" data-testid="add-destination">
-                    <input
-                        type="text"
-                        id="place-search"
-                        class="place-search-input"
-                        placeholder="Search for a place..."
-                        data-testid="place-search-input"
-                        autocomplete="off"
-                    >
+                    <!-- Container for the Google Places autocomplete element
+                         The JavaScript will inject PlaceAutocompleteElement here -->
+                    <div id="place-search-container" class="place-search-container" data-testid="place-search-container">
+                        <!-- Legacy fallback input (shown only if new API is unavailable) -->
+                        <input
+                            type="text"
+                            id="place-search-legacy"
+                            class="place-search-input"
+                            placeholder="Search for a place..."
+                            data-testid="place-search-input"
+                            autocomplete="off"
+                            style="display: none;"
+                        >
+                    </div>
                     <input
                         type="text"
                         id="destination-name"
@@ -101,9 +107,10 @@
                         <input type="number" id="threshold-value" min="1" max="120" value="10" data-testid="threshold-value">
                         <label>min before arrival</label>
                     </div>
-                    <button id="btn-save-destination" class="btn btn-save" data-testid="btn-save-destination" style="display: none;">
-                        Save Destination
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="btn-save-destination" class="btn btn-save" data-testid="btn-save-destination" style="display: none; flex: 1;">Save Destination</button>
+                        <button id="btn-cancel-destination" class="btn btn-dismiss" data-testid="btn-cancel-destination" style="display: none; flex: 1;">Cancel</button>
+                    </div>
                 </div>
                 <ul id="destination-list" class="destination-list" data-testid="destination-list">
                     <!-- Populated by JavaScript -->
@@ -129,12 +136,8 @@
     </div>
 
     <!-- ============ SCRIPTS ============ -->
-    <!--
-        Google Maps JavaScript API — loaded with your API key.
-        'libraries=places' enables the Places Autocomplete feature.
-        'callback=initMap' tells Google to call our initMap() function when loaded.
-    -->
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&libraries=places&callback=initMap" async defer></script>
+    <!-- Load Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&callback=initMap" async defer></script>
 
     <!-- Our JavaScript files (order matters — dependencies first) -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

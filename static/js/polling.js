@@ -93,8 +93,8 @@ async function executePollCycle() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 destination_id: appState.activeAlert.destinationId,
-                origin_lat: userLat,
-                origin_lng: userLng
+                latitude: userLat,
+                longitude: userLng
             })
         });
 

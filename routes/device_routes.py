@@ -9,7 +9,7 @@ Endpoints:
 
 from flask import Blueprint, request, jsonify, make_response
 from services import device_service
-from app import limiter
+from extensions import limiter
 
 device_bp = Blueprint('device', __name__)
 
@@ -50,7 +50,7 @@ def create_or_get_device():
         device.cookie_token,         # Cookie value (the UUID)
         max_age=365 * 24 * 60 * 60,  # Expires in 1 year (seconds)
         httponly=True,                # Can't be read by JavaScript
-        secure=True,                 # Only sent over HTTPS
+        secure=False,                # Allow HTTP for local dev (set True in production)
         samesite='Lax'               # CSRF protection
     )
 

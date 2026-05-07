@@ -34,10 +34,9 @@ function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: defaultCenter,
         zoom: 14,
-        // Map options for cleaner look
-        mapTypeControl: false,     // Hide satellite/terrain toggle
-        streetViewControl: false,   // Hide street view pegman
-        fullscreenControl: false,   // Hide fullscreen button
+        mapTypeControl: false,          // Hide satellite/terrain toggle
+        streetViewControl: false,       // Hide street view pegman
+        fullscreenControl: false,       // Hide fullscreen button
         zoomControl: true
     });
 
@@ -87,6 +86,8 @@ function getUserLocation() {
  * @param {Object} latLng - { lat: number, lng: number }
  */
 function setUserMarker(latLng) {
+    if (!map) return;
+    
     if (userMarker) {
         // Marker already exists, just move it
         userMarker.setPosition(latLng);
@@ -115,6 +116,8 @@ function setUserMarker(latLng) {
  * @param {string} name - Destination name for the tooltip
  */
 function setDestinationMarker(latLng, name) {
+    if (!map) return;
+    
     if (destinationMarker) {
         destinationMarker.setPosition(latLng);
         destinationMarker.setTitle(name);
@@ -146,11 +149,12 @@ function clearDestinationMarker() {
  * Uses LatLngBounds to calculate the perfect zoom level.
  */
 function fitMapToBothMarkers() {
-    if (!userMarker || !destinationMarker) return;
+    if (!map || !userMarker || !destinationMarker) return;
 
     const bounds = new google.maps.LatLngBounds();
     bounds.extend(userMarker.getPosition());
     bounds.extend(destinationMarker.getPosition());
+
     map.fitBounds(bounds, { padding: 50 });  // 50px padding around edges
 }
 

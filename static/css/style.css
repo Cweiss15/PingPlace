@@ -226,6 +226,21 @@ body {
     font-size: 1.1rem;
 }
 
+/* Place search container (holds PlaceAutocompleteElement web component) */
+.place-search-container {
+    margin-bottom: 0.5rem;
+    width: 100%;
+}
+
+/* Style the new PlaceAutocompleteElement web component */
+.place-search-container gmp-place-autocomplete {
+    width: 100%;
+    display: block;
+    --gmp-filled-input-border-radius: 8px;
+    --gmp-filled-input-padding: 0.75rem;
+    font-size: 1rem;
+}
+
 .place-search-input,
 .destination-name-input {
     width: 100%;
@@ -263,6 +278,14 @@ body {
 /* Destination List */
 .destination-list {
     list-style: none;
+}
+
+.no-destinations {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem;
+    font-style: italic;
 }
 
 .destination-item {

@@ -18,65 +18,118 @@
 let selectedPlace = null;
 
 /**
- * Initialize Google Places Autocomplete on the search input.
- * Called after the Google Maps script loads.
- *
- * Autocomplete attaches to an <input> and shows a dropdown of matching
- * places as the user types. When they select one, we get a Place object
- * with all the details we need.
+ * Initialize OpenStreetMap Nominatim Search (Fallback).
+ * Since the Google Places API is restricted on this API key, we use Nominatim
+ * to geocode the address the user types.
  */
 function initPlacesAutocomplete() {
-    const input = document.getElementById('place-search');
-    if (!input || !google || !google.maps || !google.maps.places) return;
-
-    // Create autocomplete instance attached to our input
-    const autocomplete = new google.maps.places.Autocomplete(input, {
-        // Options to customize the autocomplete behavior:
-        fields: ['place_id', 'name', 'formatted_address', 'geometry'],
-        // 'fields' limits what data we get back (saves quota/cost)
+    const container = document.getElementById('place-search-container');
+    if (!container) return;
+    
+    // Clear the container and create a simple manual search input
+    container.innerHTML = '';
+    
+    const searchDiv = document.createElement('div');
+    searchDiv.style.display = 'flex';
+    searchDiv.style.gap = '8px';
+    searchDiv.style.marginBottom = '0.5rem';
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'place-search-input';
+    input.placeholder = 'Type address & press Enter to search...';
+    input.style.marginBottom = '0';
+    input.style.flex = '1';
+    
+    const searchBtn = document.createElement('button');
+    searchBtn.textContent = 'Search';
+    searchBtn.className = 'btn';
+    searchBtn.style.width = 'auto';
+    searchBtn.style.padding = '0.75rem 1rem';
+    searchBtn.style.marginBottom = '0';
+    searchBtn.style.backgroundColor = '#6366f1';
+    searchBtn.style.color = 'white';
+    
+    searchDiv.appendChild(input);
+    searchDiv.appendChild(searchBtn);
+    container.appendChild(searchDiv);
+    
+    const performSearch = async () => {
+        const query = input.value.trim();
+        if (!query) return;
+        
+        try {
+            searchBtn.textContent = '...';
+            searchBtn.disabled = true;
+            
+            // Call Nominatim API (OpenStreetMap)
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`, {
+                headers: {
+                    'Accept-Language': 'en-US,en'
+                }
+            });
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                const place = data[0];
+                
+                selectedPlace = {
+                    place_id: place.place_id.toString(),
+                    address: place.display_name,
+                    latitude: parseFloat(place.lat),
+                    longitude: parseFloat(place.lon),
+                    suggestedName: place.name || query
+                };
+                
+                // Show the name and threshold inputs
+                const nameInput = document.getElementById('destination-name');
+                const thresholdDiv = document.querySelector('.threshold-input');
+                const saveBtn = document.getElementById('btn-save-destination');
+                const cancelBtn = document.getElementById('btn-cancel-destination');
+                
+                nameInput.style.display = 'block';
+                thresholdDiv.style.display = 'flex';
+                saveBtn.style.display = 'block';
+                if (cancelBtn) cancelBtn.style.display = 'block';
+                
+                // Pre-fill the name
+                nameInput.value = (place.name || query).substring(0, 50);
+                nameInput.focus();
+                
+                // Show destination on map
+                if (typeof setDestinationMarker === 'function') {
+                    setDestinationMarker(
+                        { lat: selectedPlace.latitude, lng: selectedPlace.longitude },
+                        selectedPlace.suggestedName
+                    );
+                }
+                
+                hideError();
+                input.value = place.display_name; // Update input with full formatted address
+            } else {
+                showError('Location not found. Try a more specific address.');
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+            showError('Error searching for location.');
+        } finally {
+            searchBtn.textContent = 'Search';
+            searchBtn.disabled = false;
+        }
+    };
+    
+    // Search on Enter key
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            performSearch();
+        }
     });
-
-    // Listen for when user selects a place from the dropdown
-    autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-
-        // Validate that the place has geometry (lat/lng)
-        if (!place.geometry || !place.geometry.location) {
-            showError('Please select a place from the dropdown suggestions.');
-            return;
-        }
-
-        // Store the selected place
-        selectedPlace = {
-            place_id: place.place_id,
-            address: place.formatted_address,
-            latitude: place.geometry.location.lat(),
-            longitude: place.geometry.location.lng(),
-            suggestedName: place.name
-        };
-
-        // Show the name and threshold inputs (hidden until a place is selected)
-        const nameInput = document.getElementById('destination-name');
-        const thresholdDiv = document.querySelector('.threshold-input');
-        const saveBtn = document.getElementById('btn-save-destination');
-
-        nameInput.style.display = 'block';
-        thresholdDiv.style.display = 'flex';
-        saveBtn.style.display = 'block';
-
-        // Pre-fill the name with the place name (user can change it)
-        nameInput.value = place.name.substring(0, 50);  // Max 50 chars
-        nameInput.focus();
-
-        // Show destination on map
-        if (typeof setDestinationMarker === 'function') {
-            setDestinationMarker(
-                { lat: selectedPlace.latitude, lng: selectedPlace.longitude },
-                place.name
-            );
-        }
-
-        hideError();
+    
+    // Search on button click
+    searchBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        performSearch();
     });
 }
 
@@ -145,14 +198,25 @@ async function saveDestination() {
  * Reset the destination form to its initial state.
  */
 function resetDestinationForm() {
-    document.getElementById('place-search').value = '';
+    // Reset the search element
+    const container = document.getElementById('place-search-container');
+    if (container) {
+        const input = container.querySelector('input[type="text"]');
+        if (input) {
+            input.value = '';
+        }
+    }
     document.getElementById('destination-name').value = '';
     document.getElementById('destination-name').style.display = 'none';
     document.querySelector('.threshold-input').style.display = 'none';
     document.getElementById('btn-save-destination').style.display = 'none';
+    const cancelBtn = document.getElementById('btn-cancel-destination');
+    if (cancelBtn) cancelBtn.style.display = 'none';
     document.getElementById('threshold-value').value = '10';
     selectedPlace = null;
-    clearDestinationMarker();
+    if (typeof clearDestinationMarker === 'function') {
+        clearDestinationMarker();
+    }
 }
 
 /**
@@ -180,12 +244,25 @@ function renderDestinationList() {
                 <div class="destination-threshold">Alert at ${dest.alert_threshold_minutes} min</div>
             </div>
             <div class="destination-actions">
-                <button class="btn-icon btn-edit" title="Edit" onclick="editDestination('${dest.id}')">✏️</button>
-                <button class="btn-icon btn-delete" title="Delete" onclick="deleteDestination('${dest.id}')">🗑️</button>
+                <button class="btn-icon btn-edit" title="Edit" data-id="${dest.id}">✏️</button>
+                <button class="btn-icon btn-delete" title="Delete" data-id="${dest.id}">🗑️</button>
             </div>
         `;
 
         list.appendChild(li);
+    });
+
+    // Attach event listeners safely
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            editDestination(e.target.closest('button').dataset.id);
+        });
+    });
+
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            deleteDestination(e.target.closest('button').dataset.id);
+        });
     });
 }
 
@@ -298,13 +375,9 @@ let autocompleteInitialized = false;
 
 function tryInitAutocomplete() {
     if (autocompleteInitialized) return;
-    if (typeof google !== 'undefined' && google.maps && google.maps.places) {
-        initPlacesAutocomplete();
-        autocompleteInitialized = true;
-    } else {
-        // Google Maps not ready yet, try again in 500ms
-        setTimeout(tryInitAutocomplete, 500);
-    }
+    // We no longer rely on Google Places API, so we initialize our Nominatim fallback immediately
+    initPlacesAutocomplete();
+    autocompleteInitialized = true;
 }
 
 // Set up event listeners when DOM is ready
@@ -312,6 +385,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Save button click
     document.getElementById('btn-save-destination').addEventListener('click', saveDestination);
 
-    // Try to init autocomplete (may need to wait for Google Maps)
+    // Cancel button click
+    const cancelBtn = document.getElementById('btn-cancel-destination');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetDestinationForm();
+        });
+    }
+
+    // Try to init autocomplete
     tryInitAutocomplete();
 });

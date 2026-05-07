@@ -10,28 +10,14 @@ Or in production: gunicorn app:app
 """
 
 from flask import Flask, make_response
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from flask_cors import CORS
 from config import Config
+from extensions import db, migrate, limiter
 
 # ============================================================
-# Create extension instances (they get connected to the app below)
+# Shared Flask extension instances are created in extensions.py.
+# This prevents circular imports between app.py and route/service modules.
 # ============================================================
-
-# Database ORM — lets you use Python classes instead of raw SQL
-db = SQLAlchemy()
-
-# Database migrations — tracks schema changes over time
-migrate = Migrate()
-
-# Rate limiter — prevents API abuse (e.g., max 60 requests/minute per IP)
-limiter = Limiter(
-    key_func=get_remote_address,  # identifies users by IP address
-    default_limits=["60 per minute"]  # global default limit
-)
 
 
 def create_app():
@@ -80,15 +66,16 @@ def create_app():
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
 
         # Content Security Policy — controls what resources the page can load
-        # 'self' = only from our domain, plus Google Maps and APIs
+        # 'self' = only from our domain, plus Google Maps (display) and Nominatim (search)
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' https://maps.googleapis.com https://maps.gstatic.com 'unsafe-inline'; "
+            "script-src 'self' https://maps.googleapis.com https://maps.gstatic.com 'unsafe-inline' 'unsafe-eval'; "
             "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
             "img-src 'self' https://*.googleapis.com https://*.gstatic.com https://*.google.com data:; "
-            "connect-src 'self' https://maps.googleapis.com; "
+            "connect-src 'self' https://maps.googleapis.com https://nominatim.openstreetmap.org; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "frame-src https://www.google.com https://maps.google.com;"
+            "frame-src https://www.google.com https://maps.google.com; "
+            "worker-src blob:;"
         )
 
         return response

@@ -9,7 +9,7 @@ This is the business logic for user identification:
 """
 
 from datetime import datetime, timezone
-from app import db
+from extensions import db
 from models.device import Device
 
 
@@ -56,3 +56,26 @@ def get_device_by_id(device_id):
         Device object or None if not found
     """
     return Device.query.get(device_id)
+
+
+def get_device_by_cookie(cookie_token):
+    """
+    Look up a device by its cookie token WITHOUT creating a new one.
+
+    Used by protected endpoints — if cookie is missing/invalid, returns None
+    so the endpoint can return a 401 Unauthorized response.
+
+    Args:
+        cookie_token: The UUID string from the browser cookie
+
+    Returns:
+        Device object or None if not found
+    """
+    if not cookie_token:
+        return None
+    device = Device.query.filter_by(cookie_token=cookie_token).first()
+    if device:
+        # Update last-seen timestamp
+        device.last_seen_at = datetime.now(timezone.utc)
+        db.session.commit()
+    return device

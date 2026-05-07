@@ -11,7 +11,7 @@ This service handles:
 - Deleting a destination
 """
 
-from app import db
+from extensions import db
 from models.destination import Destination
 
 
