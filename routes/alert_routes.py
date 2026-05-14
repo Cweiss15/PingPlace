@@ -12,7 +12,7 @@ Endpoints:
 
 from flask import Blueprint, request, jsonify
 from services import alert_service, device_service, destination_service
-from app import limiter
+from extensions import limiter
 
 alert_bp = Blueprint('alert', __name__)
 
@@ -144,8 +144,8 @@ def get_active_alert():
 
 
 def _get_device_from_cookie():
-    """Helper to extract device from cookie."""
+    """Helper to extract device from cookie. Returns None if not found."""
     cookie_token = request.cookies.get('pingplace_device')
     if not cookie_token:
         return None
-    return device_service.get_or_create_device(cookie_token)
+    return device_service.get_device_by_cookie(cookie_token)

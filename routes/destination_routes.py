@@ -12,7 +12,7 @@ Endpoints:
 
 from flask import Blueprint, request, jsonify
 from services import destination_service, device_service
-from app import limiter
+from extensions import limiter
 
 destination_bp = Blueprint('destinations', __name__)
 
@@ -28,7 +28,7 @@ def get_device_from_cookie():
     cookie_token = request.cookies.get('pingplace_device')
     if not cookie_token:
         return None
-    return device_service.get_or_create_device(cookie_token)
+    return device_service.get_device_by_cookie(cookie_token)
 
 
 @destination_bp.route('/destinations', methods=['GET'])

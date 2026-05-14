@@ -17,7 +17,7 @@ Why? Because:
 """
 
 from datetime import datetime, timezone
-from app import db
+from extensions import db
 from models.alert_session import AlertSession
 
 
