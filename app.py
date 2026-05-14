@@ -88,12 +88,14 @@ def create_app():
     from routes.destination_routes import destination_bp
     from routes.eta_routes import eta_bp
     from routes.alert_routes import alert_bp
+    from routes.subway_routes import subway_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(device_bp, url_prefix='/api')
     app.register_blueprint(destination_bp, url_prefix='/api')
     app.register_blueprint(eta_bp, url_prefix='/api')
     app.register_blueprint(alert_bp, url_prefix='/api')
+    app.register_blueprint(subway_bp, url_prefix='/api')
 
     # ============================================================
     # Create database tables if they don't exist

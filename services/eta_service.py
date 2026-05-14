@@ -4,14 +4,11 @@ services/eta_service.py — ETA Service
 Calculates travel time from the user's current location to a destination.
 
 Travel mode logic:
-  - car  → TomTom Routing API  (travelMode=car,  traffic-aware)
-  - bus  → TomTom Routing API  (travelMode=bus,  traffic-aware)
-  - train→ OSRM public routing (no real-time traffic; trains run on schedules)
-
-TomTom is the primary provider for car/bus because it:
-  1. Has a generous free tier (2 500 free routing calls/day)
-  2. Returns live traffic-delay data via `trafficDelayInSeconds`
-  3. Supports a `travelMode` parameter so we can distinguish car vs bus
+  - car   → TomTom (traffic-aware)
+  - bus   → TomTom (traffic-aware)
+  - train → 1. TomTom car time × 1.15  (walk + wait overhead)
+             2. Dijkstra subway graph    (NYC offline graph)
+             3. OSRM × 1.15             (last resort)
 """
 
 import requests
@@ -92,14 +89,14 @@ def _get_eta_from_tomtom(origin_lat, origin_lng, dest_lat, dest_lng, travel_mode
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# OSRM fallback (train / no-traffic baseline)
+# OSRM fallback (last resort, no API key needed)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _get_eta_from_osrm(origin_lat, origin_lng, dest_lat, dest_lng):
     """
     Open Source Routing Machine — free, no API key, no real-time traffic.
-    Used for 'train' mode (schedules matter more than road traffic) and as a
-    fallback when TomTom fails.
+    Last-resort fallback for train mode when both Google Transit and the
+    local subway graph fail.
 
     Note: OSRM expects coordinates as  longitude,latitude  (not lat,lng)!
     """
@@ -126,6 +123,33 @@ def _get_eta_from_osrm(origin_lat, origin_lng, dest_lat, dest_lng):
     return None, None, None
 
 
+# Transit overhead: subway is ~15% longer than car (walk to station + wait time).
+# Used when real transit data isn’t available so estimates stay comparable to car/bus.
+_TRANSIT_OVERHEAD = 1.15
+
+
+def _estimate_transit_from_tomtom(origin_lat, origin_lng, dest_lat, dest_lng):
+    """
+    Derive a transit estimate from TomTom’s car time.
+
+    TomTom already works for car/bus, so this always produces a reasonable
+    train number when Google Directions transit is unavailable.
+    Adds _TRANSIT_OVERHEAD to account for walking to the station and
+    waiting on the platform.
+
+    Returns:
+        (eta_minutes, eta_text) or (None, None) on failure
+    """
+    car_min, _, _ = _get_eta_from_tomtom(origin_lat, origin_lng, dest_lat, dest_lng, 'car')
+    if car_min is None:
+        return None, None
+    est = round(car_min * _TRANSIT_OVERHEAD)
+    return est, f"{est} min (transit estimate)"
+
+
+
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Public API used by eta_routes.py
 # ──────────────────────────────────────────────────────────────────────────────
@@ -141,47 +165,92 @@ def calculate_eta(origin_lat, origin_lng, dest_lat, dest_lng, travel_mode='car')
 
     Returns:
         {
-            'eta_minutes':     int | None,
-            'eta_text':        str | None,   # e.g. "14 min (+3 min traffic)"
-            'traffic_delay':   int | None,   # extra minutes due to traffic
-            'travel_mode':     str,
-            'status':          'OK' | 'ERROR',
-            'error':           str           # only present on ERROR
+            'eta_minutes':   int | None,
+            'eta_text':      str | None,
+            'traffic_delay': int | None,   # always 0 for train
+            'travel_mode':   str,
+            'status':        'OK' | 'ERROR',
+            'error':         str           # only present on ERROR
+            # train mode also includes:
+            'walkingMinutes': int,
+            'trainMinutes':   int,
+            'transfers':      int,
+            'route':          list[str],
+            'provider':       str          # which data source answered
         }
     """
     eta_minutes = eta_text = traffic_delay = None
+    route_details: dict | None = None
+    provider = None
 
     if travel_mode in ('car', 'bus'):
-        # Primary: TomTom (traffic-aware)
+        # ── Car / Bus: TomTom (traffic-aware) ───────────────────────────────
         eta_minutes, eta_text, traffic_delay = _get_eta_from_tomtom(
             origin_lat, origin_lng, dest_lat, dest_lng, travel_mode
         )
         if eta_minutes is None:
-            # Fallback to OSRM if TomTom fails
             print("TomTom failed — falling back to OSRM")
             eta_minutes, eta_text, traffic_delay = _get_eta_from_osrm(
                 origin_lat, origin_lng, dest_lat, dest_lng
             )
+
     else:
-        # 'train' — use OSRM (road-distance heuristic; trains ignore traffic)
-        eta_minutes, eta_text, traffic_delay = _get_eta_from_osrm(
+        # ── Train: three-provider chain, first success wins ──────────────────
+        traffic_delay = 0   # trains run on schedules, not traffic
+
+        # 1. TomTom car time × overhead — reliable since TomTom already works
+        eta_minutes, eta_text = _estimate_transit_from_tomtom(
             origin_lat, origin_lng, dest_lat, dest_lng
         )
+        if eta_minutes is not None:
+            provider = 'tomtom_estimate'
+
+        # 3. Local Dijkstra subway graph — offline, NYC coverage, no API key
+        if eta_minutes is None:
+            print("TomTom estimate failed — trying subway graph …")
+            from services.subway_service import calculate_subway_eta
+            subway = calculate_subway_eta(origin_lat, origin_lng, dest_lat, dest_lng)
+            if subway['status'] == 'OK':
+                eta_minutes  = subway['minutes']
+                eta_text     = f"{eta_minutes} min (subway estimate)"
+                route_details = {
+                    'walkingMinutes': subway['walkingMinutes'],
+                    'trainMinutes':   subway['trainMinutes'],
+                    'transfers':      subway['transfers'],
+                    'route':          subway['route'],
+                }
+                provider = 'subway_graph'
+
+        # 4. OSRM × overhead — last resort
+        if eta_minutes is None:
+            print("All transit providers failed — falling back to OSRM …")
+            osrm_min, _, _ = _get_eta_from_osrm(origin_lat, origin_lng, dest_lat, dest_lng)
+            if osrm_min is not None:
+                eta_minutes = round(osrm_min * _TRANSIT_OVERHEAD)
+                eta_text    = f"{eta_minutes} min (estimated)"
+                provider    = 'osrm'
 
     if eta_minutes is None:
         return {
-            'eta_minutes': None,
-            'eta_text': None,
+            'eta_minutes':   None,
+            'eta_text':      None,
             'traffic_delay': None,
-            'travel_mode': travel_mode,
-            'status': 'ERROR',
-            'error': 'Could not calculate ETA — all providers failed'
+            'travel_mode':   travel_mode,
+            'status':        'ERROR',
+            'error':         'Could not calculate ETA — all providers failed',
         }
 
-    return {
+    result = {
         'eta_minutes':   eta_minutes,
         'eta_text':      eta_text,
         'traffic_delay': traffic_delay,
         'travel_mode':   travel_mode,
-        'status':        'OK'
+        'status':        'OK',
     }
+
+    # Attach enriched transit breakdown when available (train mode only)
+    if route_details:
+        result.update(route_details)
+        result['provider'] = provider
+
+    return result
