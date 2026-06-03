@@ -23,6 +23,10 @@ Thumbs.db
 instance/
 *.db
 
+# Temporary test files
+Temp*
+*.txt
+
 # AI-DLC documentation (project planning docs - not part of the app)
 aidlc-docs/
 .aidlc-rule-details/
