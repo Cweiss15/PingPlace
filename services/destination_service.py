@@ -39,7 +39,7 @@ def create_destination(device_id, name, address, place_id, latitude, longitude,
         place_id=place_id,
         latitude=latitude,
         longitude=longitude,
-        alert_threshold_minutes=alert_threshold_minutes
+        alert_threshold_minutes=alert_threshold_minutes,
     )
     db.session.add(destination)
     db.session.commit()
@@ -98,7 +98,6 @@ def update_destination(destination_id, device_id, **kwargs):
     if not destination:
         return None
 
-    # Only update fields that are allowed to change
     allowed_fields = ['name', 'alert_threshold_minutes']
     for field, value in kwargs.items():
         if field in allowed_fields and value is not None:

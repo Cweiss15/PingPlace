@@ -89,7 +89,6 @@ def create_destination():
     latitude = data.get('latitude')
     longitude = data.get('longitude')
     threshold = data.get('alert_threshold_minutes', 10)
-
     # Validate required fields
     errors = []
     if not name:
@@ -131,7 +130,7 @@ def create_destination():
         place_id=place_id,
         latitude=latitude,
         longitude=longitude,
-        alert_threshold_minutes=threshold
+        alert_threshold_minutes=threshold,
     )
 
     return jsonify(destination.to_dict()), 201

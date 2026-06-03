@@ -24,6 +24,7 @@
     <!-- This meta tag makes the page mobile-responsive -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PingPlace — Commuter Alert</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📍</text></svg>">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -77,17 +78,13 @@
                     </div>
                 </div>
 
-                <select id="destination-select" class="destination-select" data-testid="destination-select">
-                    <option value="">Select destination...</option>
-                </select>
+                <!-- Shows which destination is selected (populated by card click) -->
+                <div id="selected-destination-info" class="selected-destination-info" style="display:none;"></div>
                 <button id="btn-start-alert" class="btn btn-start" data-testid="btn-start-alert" disabled>
                     ▶ Start Alert
                 </button>
                 <button id="btn-stop-alert" class="btn btn-stop" data-testid="btn-stop-alert" style="display: none;">
                     ⏹ Stop Alert
-                </button>
-                <button id="btn-track-only" class="btn btn-track" data-testid="btn-track-only" disabled>
-                    👁 Track Only
                 </button>
                 <button id="btn-dismiss-alert" class="btn btn-dismiss" data-testid="btn-dismiss-alert" style="display: none;">
                     ✓ Dismiss Alert
@@ -155,20 +152,20 @@
     </div>
 
     <!-- ============ SCRIPTS ============ -->
-    <!-- Load Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&callback=initMap" async defer></script>
-
     <!-- Inject server-side config into JS -->
     <script>
         // Injected by Flask — do not hardcode these values elsewhere
         const GEOAPIFY_API_KEY = "{{ geoapify_api_key }}";
     </script>
 
-    <!-- Our JavaScript files (order matters — dependencies first) -->
+    <!-- Our JS files must load before Google Maps so initMap is defined when the API calls it -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/map.js') }}"></script>
     <script src="{{ url_for('static', filename='js/destinations.js') }}"></script>
     <script src="{{ url_for('static', filename='js/polling.js') }}"></script>
     <script src="{{ url_for('static', filename='js/alert.js') }}"></script>
+
+    <!-- Google Maps loaded last with defer so initMap() is already defined when it fires -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&callback=initMap" defer></script>
 </body>
 </html>

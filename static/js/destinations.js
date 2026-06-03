@@ -92,7 +92,6 @@ function initPlacesAutocomplete() {
                 'transition:background 0.15s'
             ].join(';');
 
-            // Bold the primary name, dim the secondary address
             const primary = escapeHtml(props.name || props.formatted || '');
             const secondary = escapeHtml(
                 props.name && props.formatted && props.formatted !== props.name
@@ -104,9 +103,7 @@ function initPlacesAutocomplete() {
 
             li.addEventListener('mouseenter', () => { li.style.background = 'rgba(99,102,241,.25)'; });
             li.addEventListener('mouseleave', () => { li.style.background = ''; });
-
             li.addEventListener('mousedown', (e) => {
-                // Use mousedown (not click) so it fires before the input blur
                 e.preventDefault();
                 selectSuggestion(feature);
             });
@@ -157,9 +154,7 @@ function initPlacesAutocomplete() {
             );
         }
 
-        // ── Show straight-line distance from current location ─────────────────
         showDistanceFromCurrentLocation(selectedPlace.latitude, selectedPlace.longitude, selectedPlace.suggestedName);
-
         hideError();
     }
 
@@ -257,17 +252,10 @@ async function saveDestination() {
         // Add to local state and update UI
         appState.destinations.push(newDest);
         renderDestinationList();
-        updateDestinationSelect();
 
-        // Auto-select the newly saved destination in the dropdown
-        const select = document.getElementById('destination-select');
-        if (select) {
-            select.value = newDest.id;
-            // Trigger the change event so buttons enable
-            select.dispatchEvent(new Event('change'));
-        }
+        // Auto-select the newly saved destination
+        if (typeof selectDestination === 'function') selectDestination(newDest.id);
 
-        // Reset the form
         resetDestinationForm();
         hideError();
 
@@ -309,7 +297,7 @@ function resetDestinationForm() {
  */
 function renderDestinationList() {
     const list = document.getElementById('destination-list');
-    list.innerHTML = '';  // Clear existing items
+    list.innerHTML = '';
 
     if (appState.destinations.length === 0) {
         list.innerHTML = '<li class="no-destinations">No saved destinations yet. Search above to add one!</li>';
@@ -318,7 +306,7 @@ function renderDestinationList() {
 
     appState.destinations.forEach(dest => {
         const li = document.createElement('li');
-        li.className = 'destination-item';
+        li.className = 'destination-item' + (dest.id === appState.selectedDestinationId ? ' selected' : '');
         li.dataset.id = dest.id;
 
         li.innerHTML = `
@@ -333,18 +321,24 @@ function renderDestinationList() {
             </div>
         `;
 
+        // Card click → select for alert (buttons stop propagation so they don't trigger this)
+        li.addEventListener('click', () => {
+            if (typeof selectDestination === 'function') selectDestination(dest.id);
+        });
+
         list.appendChild(li);
     });
 
-    // Attach event listeners safely
     document.querySelectorAll('.btn-edit').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             editDestination(e.target.closest('button').dataset.id);
         });
     });
 
     document.querySelectorAll('.btn-delete').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             deleteDestination(e.target.closest('button').dataset.id);
         });
     });
@@ -371,8 +365,13 @@ async function deleteDestination(destinationId) {
 
         // Remove from local state
         appState.destinations = appState.destinations.filter(d => d.id !== destinationId);
+        if (appState.selectedDestinationId === destinationId) {
+            appState.selectedDestinationId = null;
+            document.getElementById('btn-start-alert').disabled = true;
+            const panel = document.getElementById('selected-destination-info');
+            if (panel) panel.style.display = 'none';
+        }
         renderDestinationList();
-        updateDestinationSelect();
 
     } catch (error) {
         showError('Network error. Please try again.');
@@ -381,10 +380,7 @@ async function deleteDestination(destinationId) {
 }
 
 /**
- * Edit a destination's threshold.
- * Uses a simple prompt for now (could be a modal later).
- *
- * @param {string} destinationId - UUID of destination to edit
+ * Edit a destination's name or threshold.
  */
 async function editDestination(destinationId) {
     const dest = appState.destinations.find(d => d.id === destinationId);
@@ -395,7 +391,7 @@ async function editDestination(destinationId) {
         dest.alert_threshold_minutes
     );
 
-    if (newThreshold === null) return;  // User cancelled
+    if (newThreshold === null) return;
 
     const threshold = parseInt(newThreshold);
     if (isNaN(threshold) || threshold < 1 || threshold > 120) {
@@ -416,15 +412,14 @@ async function editDestination(destinationId) {
         }
 
         const updated = await response.json();
-
-        // Update local state
         const index = appState.destinations.findIndex(d => d.id === destinationId);
-        if (index !== -1) {
-            appState.destinations[index] = updated;
-        }
+        if (index !== -1) appState.destinations[index] = updated;
 
         renderDestinationList();
-        updateDestinationSelect();
+        // Refresh the info panel if this was the selected destination
+        if (appState.selectedDestinationId === destinationId && typeof selectDestination === 'function') {
+            selectDestination(destinationId);
+        }
         hideError();
 
     } catch (error) {
