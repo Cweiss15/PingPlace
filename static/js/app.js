@@ -14,18 +14,20 @@
 
 // ============ GLOBAL STATE ============
 const appState = {
-    deviceId: null,          // Set after device registration
-    destinations: [],        // Array of saved destinations
+    deviceId: null,             // Set after device registration
+    destinations: [],           // Array of saved destinations
+    travelMode: 'car',          // 'car' | 'bus' | 'train'
+    selectedDestinationId: null, // Set when user clicks a destination card
     activeAlert: {
-        sessionId: null,     // UUID from server when alert starts
+        sessionId: null,        // UUID from server when alert starts
         destinationId: null,
         destinationName: '',
         thresholdMinutes: 10,
-        currentEta: null,    // Latest ETA in minutes
-        lastUpdated: null,   // Timestamp of last ETA update
-        state: 'IDLE'        // 'IDLE' | 'POLLING' | 'FIRED'
+        currentEta: null,       // Latest ETA in minutes
+        lastUpdated: null,      // Timestamp of last ETA update
+        state: 'IDLE'           // 'IDLE' | 'POLLING' | 'FIRED'
     },
-    trackingMode: false      // True = monitor ETA without alarm
+    trackingMode: false         // True = monitor ETA without alarm
 };
 
 /**
@@ -79,7 +81,8 @@ async function checkActiveAlert() {
         const data = await response.json();
 
         if (data.active) {
-            // Resume the active alert
+            // Resume the active alert (page was refreshed mid-commute)
+            appState.selectedDestinationId = data.destination_id;
             appState.activeAlert.sessionId = data.alert_session_id;
             appState.activeAlert.destinationId = data.destination_id;
             appState.activeAlert.destinationName = data.destination_name;
@@ -94,6 +97,34 @@ async function checkActiveAlert() {
 }
 
 /**
+ * Set which destination card is selected for the alert.
+ * Called by card clicks in destinations.js.
+ */
+function selectDestination(id) {
+    if (appState.activeAlert.state !== 'IDLE') return;
+    appState.selectedDestinationId = id;
+
+    // Highlight the selected card
+    document.querySelectorAll('.destination-item').forEach(el => {
+        el.classList.toggle('selected', el.dataset.id === id);
+    });
+
+    // Enable Start Alert / Track Only
+    const dest = appState.destinations.find(d => d.id === id);
+    document.getElementById('btn-start-alert').disabled = !dest;
+    document.getElementById('btn-track-only').disabled = !dest;
+
+    // Show selected-destination info panel
+    const panel = document.getElementById('selected-destination-info');
+    if (panel && dest) {
+        const TAG_EMOJI = { home: '🏠', work: '💼', school: '🎓', gym: '🏋️', other: '📍' };
+        const emoji = TAG_EMOJI[dest.tag] || '📍';
+        panel.textContent = `${emoji} ${dest.name} · alert at ${dest.alert_threshold_minutes} min`;
+        panel.style.display = 'block';
+    }
+}
+
+/**
  * Set up click handlers for all buttons.
  */
 function setupEventListeners() {
@@ -103,18 +134,17 @@ function setupEventListeners() {
     // Stop Alert button
     document.getElementById('btn-stop-alert').addEventListener('click', handleStopAlert);
 
-    // Track Only button
-    document.getElementById('btn-track-only').addEventListener('click', handleTrackOnly);
-
     // Dismiss Alert buttons (both the small one and the overlay one)
     document.getElementById('btn-dismiss-alert').addEventListener('click', handleDismissAlert);
     document.getElementById('btn-dismiss-overlay').addEventListener('click', handleDismissAlert);
 
-    // Destination select dropdown — enable/disable buttons based on selection
-    document.getElementById('destination-select').addEventListener('change', function() {
-        const hasSelection = this.value !== '';
-        document.getElementById('btn-start-alert').disabled = !hasSelection;
-        document.getElementById('btn-track-only').disabled = !hasSelection;
+    // Transport mode picker
+    document.querySelectorAll('.transport-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            appState.travelMode = btn.dataset.mode;
+            document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
     });
 }
 
@@ -125,7 +155,7 @@ function setupEventListeners() {
  * 3. Start polling
  */
 async function handleStartAlert() {
-    const destinationId = document.getElementById('destination-select').value;
+    const destinationId = appState.selectedDestinationId;
     if (!destinationId) return;
 
     // Request location permission first
@@ -175,44 +205,12 @@ async function handleStopAlert() {
 }
 
 /**
- * Handle "Track Only" button click.
- * Same as Start Alert but without firing notifications.
- */
-async function handleTrackOnly() {
-    const destinationId = document.getElementById('destination-select').value;
-    if (!destinationId) return;
-
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) return;
-
-    // Find the destination to get its details
-    const dest = appState.destinations.find(d => d.id === destinationId);
-
-    // Track mode doesn't create a server-side alert session
-    appState.activeAlert.destinationId = destinationId;
-    appState.activeAlert.destinationName = dest ? dest.name : 'Destination';
-    appState.activeAlert.thresholdMinutes = dest ? dest.alert_threshold_minutes : 10;
-    appState.activeAlert.state = 'POLLING';
-    appState.trackingMode = true;  // This flag prevents alert from firing
-
-    updateUIForState('POLLING');
-    startPolling();
-    hideError();
-}
-
-/**
  * Handle alert dismissal (after it fires).
  */
 async function handleDismissAlert() {
     stopAlertSound();  // Defined in alert.js
     hideAlertOverlay();
-
-    if (appState.activeAlert.sessionId) {
-        await stopCurrentAlert('alert_fired');
-    } else {
-        // Was in tracking mode, just reset
-        resetAlertState();
-    }
+    await stopCurrentAlert('alert_fired');
 }
 
 /**
@@ -287,58 +285,68 @@ function requestLocationPermission() {
 function updateUIForState(state) {
     const startBtn = document.getElementById('btn-start-alert');
     const stopBtn = document.getElementById('btn-stop-alert');
-    const trackBtn = document.getElementById('btn-track-only');
     const dismissBtn = document.getElementById('btn-dismiss-alert');
     const etaDisplay = document.querySelector('.eta-display');
     const statusDot = document.querySelector('.status-dot');
     const statusText = document.querySelector('.status-text');
-    const destSelect = document.getElementById('destination-select');
+    const destList = document.getElementById('destination-list');
+    const transportBtns = document.querySelectorAll('.transport-btn');
+
+    // Dim destination cards and disable selection while monitoring
+    if (destList) destList.classList.toggle('monitoring', state !== 'IDLE');
 
     switch (state) {
         case 'IDLE':
             startBtn.style.display = 'block';
             stopBtn.style.display = 'none';
-            trackBtn.style.display = 'block';
             dismissBtn.style.display = 'none';
             etaDisplay.style.display = 'none';
             statusDot.className = 'status-dot idle';
             statusText.textContent = 'No alert active';
-            destSelect.disabled = false;
+            transportBtns.forEach(b => b.disabled = false);
             break;
 
-        case 'POLLING':
+        case 'POLLING': {
+            const modeEmoji = { car: '🚗', bus: '🚌', train: '🚆' }[appState.travelMode] || '';
             startBtn.style.display = 'none';
             stopBtn.style.display = 'block';
-            trackBtn.style.display = 'none';
             dismissBtn.style.display = 'none';
             etaDisplay.style.display = 'block';
             statusDot.className = 'status-dot polling';
-            statusText.textContent = appState.trackingMode
-                ? `Tracking: ${appState.activeAlert.destinationName}`
-                : `Alert active: ${appState.activeAlert.destinationName}`;
-            destSelect.disabled = true;
+            statusText.textContent = `${modeEmoji} Alert active: ${appState.activeAlert.destinationName}`;
+            transportBtns.forEach(b => b.disabled = true);
             break;
+        }
 
         case 'FIRED':
             startBtn.style.display = 'none';
             stopBtn.style.display = 'none';
-            trackBtn.style.display = 'none';
             dismissBtn.style.display = 'block';
             statusDot.className = 'status-dot fired';
             statusText.textContent = 'ALERT! Approaching destination!';
-            destSelect.disabled = true;
+            transportBtns.forEach(b => b.disabled = true);
             break;
     }
 }
 
 /**
  * Update the ETA display on the dashboard.
+ * Shows travel time and, for car/bus, any traffic delay.
  */
-function updateEtaDisplay(etaMinutes) {
+function updateEtaDisplay(etaMinutes, etaText, trafficDelay) {
     const etaValue = document.querySelector('.eta-value');
+    const etaLabel = document.querySelector('.eta-label');
     const etaUpdated = document.querySelector('.eta-updated');
 
     etaValue.textContent = etaMinutes !== null ? etaMinutes : '--';
+
+    // Show traffic delay hint for car/bus
+    if (trafficDelay && trafficDelay > 0 && appState.travelMode !== 'train') {
+        etaLabel.innerHTML = `min to destination &nbsp;<span style="color:#ef4444;font-size:0.75rem;font-weight:600">+${trafficDelay} min traffic</span>`;
+    } else {
+        etaLabel.textContent = 'min to destination';
+    }
+
     etaUpdated.textContent = `Updated ${new Date().toLocaleTimeString()}`;
     appState.activeAlert.currentEta = etaMinutes;
     appState.activeAlert.lastUpdated = new Date();
@@ -378,20 +386,9 @@ function hideError() {
 }
 
 /**
- * Update the destination select dropdown from appState.destinations.
+ * No-op kept for any legacy call sites — selection is now card-based.
  */
-function updateDestinationSelect() {
-    const select = document.getElementById('destination-select');
-    // Keep the first "Select destination..." option
-    select.innerHTML = '<option value="">Select destination...</option>';
-
-    appState.destinations.forEach(dest => {
-        const option = document.createElement('option');
-        option.value = dest.id;
-        option.textContent = `${dest.name} (${dest.alert_threshold_minutes} min)`;
-        select.appendChild(option);
-    });
-}
+function updateDestinationSelect() {}
 
 // Start the app when the page loads
 document.addEventListener('DOMContentLoaded', initApp);

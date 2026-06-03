@@ -22,7 +22,7 @@ Table structure in PostgreSQL:
 
 import uuid
 from datetime import datetime, timezone
-from app import db
+from extensions import db
 
 
 class AlertSession(db.Model):

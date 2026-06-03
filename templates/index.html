@@ -3,7 +3,7 @@
   templates/index.html — The Main (and Only) Page
 
   This is a Jinja2 template. Flask processes it before sending to the browser.
-  Anything in {{ }} or {% %} is Jinja2 syntax that Flask replaces with values.
+  Anything in double curly braces is Jinja2 syntax that Flask replaces with values.
 
   Page structure:
   +--------------------------------------------------+
@@ -24,6 +24,7 @@
     <!-- This meta tag makes the page mobile-responsive -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PingPlace — Commuter Alert</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📍</text></svg>">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -49,6 +50,8 @@
                     <span class="status-dot idle" data-testid="status-dot"></span>
                     <span class="status-text" data-testid="status-text">No alert active</span>
                 </div>
+                <!-- Distance banner — shown when user selects a search suggestion -->
+                <div id="distance-banner" class="distance-banner" style="display: none;"></div>
                 <div class="eta-display" data-testid="eta-display" style="display: none;">
                     <span class="eta-value" data-testid="eta-value">--</span>
                     <span class="eta-label">min to destination</span>
@@ -58,17 +61,30 @@
 
             <!-- Alert Controls -->
             <div class="alert-controls" data-testid="alert-controls">
-                <select id="destination-select" class="destination-select" data-testid="destination-select">
-                    <option value="">Select destination...</option>
-                </select>
+
+                <!-- Transport Mode Picker -->
+                <div class="transport-picker" id="transport-picker" data-testid="transport-picker">
+                    <span class="transport-label">How are you travelling?</span>
+                    <div class="transport-options">
+                        <button class="transport-btn active" data-mode="car" id="mode-car" title="Car (with traffic)" data-testid="mode-car">
+                            🚗<span>Car</span>
+                        </button>
+                        <button class="transport-btn" data-mode="bus" id="mode-bus" title="Bus (with traffic)" data-testid="mode-bus">
+                            🚌<span>Bus</span>
+                        </button>
+                        <button class="transport-btn" data-mode="train" id="mode-train" title="Train (no traffic)" data-testid="mode-train">
+                            🚆<span>Train</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Shows which destination is selected (populated by card click) -->
+                <div id="selected-destination-info" class="selected-destination-info" style="display:none;"></div>
                 <button id="btn-start-alert" class="btn btn-start" data-testid="btn-start-alert" disabled>
                     ▶ Start Alert
                 </button>
                 <button id="btn-stop-alert" class="btn btn-stop" data-testid="btn-stop-alert" style="display: none;">
                     ⏹ Stop Alert
-                </button>
-                <button id="btn-track-only" class="btn btn-track" data-testid="btn-track-only" disabled>
-                    👁 Track Only
                 </button>
                 <button id="btn-dismiss-alert" class="btn btn-dismiss" data-testid="btn-dismiss-alert" style="display: none;">
                     ✓ Dismiss Alert
@@ -79,14 +95,20 @@
             <div class="destinations-section" data-testid="destinations-section">
                 <h3>My Destinations</h3>
                 <div class="add-destination" data-testid="add-destination">
-                    <input
-                        type="text"
-                        id="place-search"
-                        class="place-search-input"
-                        placeholder="Search for a place..."
-                        data-testid="place-search-input"
-                        autocomplete="off"
-                    >
+                    <!-- Container for the Google Places autocomplete element
+                         The JavaScript will inject PlaceAutocompleteElement here -->
+                    <div id="place-search-container" class="place-search-container" data-testid="place-search-container">
+                        <!-- Legacy fallback input (shown only if new API is unavailable) -->
+                        <input
+                            type="text"
+                            id="place-search-legacy"
+                            class="place-search-input"
+                            placeholder="Search for a place..."
+                            data-testid="place-search-input"
+                            autocomplete="off"
+                            style="display: none;"
+                        >
+                    </div>
                     <input
                         type="text"
                         id="destination-name"
@@ -101,9 +123,10 @@
                         <input type="number" id="threshold-value" min="1" max="120" value="10" data-testid="threshold-value">
                         <label>min before arrival</label>
                     </div>
-                    <button id="btn-save-destination" class="btn btn-save" data-testid="btn-save-destination" style="display: none;">
-                        Save Destination
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="btn-save-destination" class="btn btn-save" data-testid="btn-save-destination" style="display: none; flex: 1;">Save Destination</button>
+                        <button id="btn-cancel-destination" class="btn btn-dismiss" data-testid="btn-cancel-destination" style="display: none; flex: 1;">Cancel</button>
+                    </div>
                 </div>
                 <ul id="destination-list" class="destination-list" data-testid="destination-list">
                     <!-- Populated by JavaScript -->
@@ -129,18 +152,20 @@
     </div>
 
     <!-- ============ SCRIPTS ============ -->
-    <!--
-        Google Maps JavaScript API — loaded with your API key.
-        'libraries=places' enables the Places Autocomplete feature.
-        'callback=initMap' tells Google to call our initMap() function when loaded.
-    -->
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&libraries=places&callback=initMap" async defer></script>
+    <!-- Inject server-side config into JS -->
+    <script>
+        // Injected by Flask — do not hardcode these values elsewhere
+        const GEOAPIFY_API_KEY = "{{ geoapify_api_key }}";
+    </script>
 
-    <!-- Our JavaScript files (order matters — dependencies first) -->
+    <!-- Our JS files must load before Google Maps so initMap is defined when the API calls it -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/map.js') }}"></script>
     <script src="{{ url_for('static', filename='js/destinations.js') }}"></script>
     <script src="{{ url_for('static', filename='js/polling.js') }}"></script>
     <script src="{{ url_for('static', filename='js/alert.js') }}"></script>
+
+    <!-- Google Maps loaded last with defer so initMap() is already defined when it fires -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&callback=initMap" defer></script>
 </body>
 </html>

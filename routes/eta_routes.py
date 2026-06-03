@@ -10,7 +10,7 @@ Endpoint:
 
 from flask import Blueprint, request, jsonify
 from services import eta_service, destination_service, device_service
-from app import limiter
+from extensions import limiter
 
 eta_bp = Blueprint('eta', __name__)
 
@@ -46,7 +46,7 @@ def calculate_eta():
     1. Frontend JS gets GPS from phone → { lat: 40.71, lng: -74.00 }
     2. Frontend sends POST /api/eta with lat, lng, and destination_id
     3. This route validates the input
-    4. Calls eta_service.calculate_eta() which hits Google Distance Matrix
+    4. Calls eta_service.calculate_eta() which uses TomTom (car/bus) or OSRM (train)
     5. Returns the ETA to the frontend
     6. Frontend checks: ETA <= threshold? If yes → fire alert
     """
@@ -62,6 +62,7 @@ def calculate_eta():
     latitude = data.get('latitude')
     longitude = data.get('longitude')
     destination_id = data.get('destination_id')
+    travel_mode = data.get('travel_mode', 'car')  # 'car' | 'bus' | 'train'
 
     if latitude is None or longitude is None:
         return jsonify({'error': 'latitude and longitude are required'}), 400
@@ -75,17 +76,21 @@ def calculate_eta():
     if not destination_id:
         return jsonify({'error': 'destination_id is required'}), 400
 
+    if travel_mode not in ('car', 'bus', 'train'):
+        return jsonify({'error': 'travel_mode must be car, bus, or train'}), 400
+
     # ---- Verify destination belongs to this device (IDOR prevention) ----
     destination = destination_service.get_destination(destination_id, device.id)
     if not destination:
         return jsonify({'error': 'Destination not found'}), 404
 
-    # ---- Calculate ETA via Google Distance Matrix API ----
+    # ---- Calculate ETA via TomTom (car/bus) or OSRM (train) ----
     result = eta_service.calculate_eta(
         origin_lat=latitude,
         origin_lng=longitude,
         dest_lat=destination.latitude,
-        dest_lng=destination.longitude
+        dest_lng=destination.longitude,
+        travel_mode=travel_mode
     )
 
     # Add destination context to the response
@@ -102,8 +107,8 @@ def calculate_eta():
 
 
 def _get_device_from_cookie():
-    """Helper to extract device from cookie."""
+    """Helper to extract device from cookie. Returns None if not found."""
     cookie_token = request.cookies.get('pingplace_device')
     if not cookie_token:
         return None
-    return device_service.get_or_create_device(cookie_token)
+    return device_service.get_device_by_cookie(cookie_token)

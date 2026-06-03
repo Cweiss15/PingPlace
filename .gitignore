@@ -17,7 +17,11 @@ env/
 
 # OS files
 .DS_Store
-Thumbs.dbcant
+Thumbs.db
+
+# SQLite database (runtime data — never belongs in source control)
+instance/
+*.db
 
 # AI-DLC documentation (project planning docs - not part of the app)
 aidlc-docs/

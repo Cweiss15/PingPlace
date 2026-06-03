@@ -16,7 +16,7 @@ Example:
 
 import pytest
 from app import create_app
-from models import db
+from extensions import db
 
 
 @pytest.fixture

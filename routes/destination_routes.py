@@ -12,7 +12,7 @@ Endpoints:
 
 from flask import Blueprint, request, jsonify
 from services import destination_service, device_service
-from app import limiter
+from extensions import limiter
 
 destination_bp = Blueprint('destinations', __name__)
 
@@ -28,7 +28,7 @@ def get_device_from_cookie():
     cookie_token = request.cookies.get('pingplace_device')
     if not cookie_token:
         return None
-    return device_service.get_or_create_device(cookie_token)
+    return device_service.get_device_by_cookie(cookie_token)
 
 
 @destination_bp.route('/destinations', methods=['GET'])
@@ -89,7 +89,6 @@ def create_destination():
     latitude = data.get('latitude')
     longitude = data.get('longitude')
     threshold = data.get('alert_threshold_minutes', 10)
-
     # Validate required fields
     errors = []
     if not name:
@@ -131,7 +130,7 @@ def create_destination():
         place_id=place_id,
         latitude=latitude,
         longitude=longitude,
-        alert_threshold_minutes=threshold
+        alert_threshold_minutes=threshold,
     )
 
     return jsonify(destination.to_dict()), 201
