@@ -481,7 +481,52 @@ body {
     75% { transform: translateX(5px); }
 }
 
-/* ============ 5. RESPONSIVE BREAKPOINTS ============ */
+/* ============ 5. CLICKABLE DESTINATION CARDS ============ */
+
+.destination-item {
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.destination-item:hover {
+    border-color: #a5b4fc;
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.15);
+}
+
+.destination-item.selected {
+    border-color: #6366f1;
+    background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.2);
+}
+
+/* Dim cards while an alert is active so user knows they can't re-select */
+.destination-list.monitoring .destination-item {
+    cursor: default;
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+/* But keep action buttons (star, edit, delete) tappable during monitoring */
+.destination-list.monitoring .destination-item .destination-actions {
+    pointer-events: all;
+}
+
+/* ============ 6. SELECTED DESTINATION INFO PANEL ============ */
+
+.selected-destination-info {
+    padding: 0.6rem 0.85rem;
+    background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+    border: 2px solid #6366f1;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: #4338ca;
+    font-weight: 600;
+    display: none;
+}
+
+/* ============ 10. RESPONSIVE BREAKPOINTS ============ */
 
 /* Tablet and up — side-by-side layout */
 @media (min-width: 768px) {
