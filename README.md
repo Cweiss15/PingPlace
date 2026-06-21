@@ -89,7 +89,7 @@ Car and bus modes use TomTom directly (with live traffic), falling back to OSRM 
 **Prerequisites:** Python 3.12+
 
 ```bash
-git clone https://github.com/your-username/PingPlace.git
+git clone https://github.com/Cweiss15/PingPlace.git
 cd PingPlace
 python -m venv venv
 source venv/bin/activate       # Windows: venv\Scripts\activate
