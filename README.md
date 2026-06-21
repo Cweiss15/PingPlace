@@ -2,8 +2,6 @@
 
 A commuter alert web app that wakes you up based on **travel time**, not clock time. Set a destination, configure how many minutes before arrival you want to be alerted, and PingPlace monitors your live location in the background — firing a notification and audio alarm when you're close enough.
 
-Built as a practicum final project.
-
 🔗 **Live demo:** https://pingplace.onrender.com
 
 ---
